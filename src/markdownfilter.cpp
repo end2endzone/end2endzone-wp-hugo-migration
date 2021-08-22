@@ -10,7 +10,7 @@
 #include <algorithm>    // std::min
 
 static std::string WEBSITE_HOSTNAME = "http://www.end2endzone.com";
-static bool process_in_place = true;
+static bool process_file_in_place = true;
 
 static bool is_utf8_source = true; //change this to false if you are parsing from Windows code page 1252 (Cp1252) or from ISO8859-1 character encoding
 
@@ -2136,13 +2136,13 @@ int main(int argc, char* argv[])
 
   // use in-place replacement
   std::string output_path;
-  if (process_in_place)
+  if (process_file_in_place)
     output_path = std::string(path);
   else
     output_path = std::string(path)+".backup.md";
 
   // show output message
-  if (process_in_place)
+  if (process_file_in_place)
     std::cout << "Saving file.\n";
   else
     std::cout << "Saving file as '" << output_path << "'.\n";

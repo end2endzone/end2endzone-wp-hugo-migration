@@ -1,6 +1,6 @@
 # CMakeLists.txt
 cmake_minimum_required(VERSION 3.4.3 FATAL_ERROR)
-project(bin2cpp)
+project(wp-hugo-migration)
 
 #Find optional packages.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
