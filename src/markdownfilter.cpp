@@ -104,6 +104,7 @@ bool parse_gallery_table(std::string & content, HtmlTable & table);
 bool parse_html_table(std::string & content, HtmlTable & table);
 
 void filter_span(std::string & content);
+void filter_paragraph_with_custom_css(std::string & content);
 void filter_paragraph(std::string & content);
 void filter_images(std::string & content);
 void filter_anchors(std::string & content);
@@ -995,6 +996,63 @@ inline bool is_custom_css_class(const std::string & class_) {
 /// I use multiple custom css classes in my original wordpress posts. For example: 
 ///  * `pleasenote` is used to emphasise a note.
 ///  * `postedit`, to highlight post edits after publishing (after first public release).
+/// Each paragraph that had custom css classes are wrapped in a shortcode which name matches the name of the class.
+/// For example:
+///   {{< postedit >}}
+///     Source code is now moved to GitHub. Source code can be downloaded from [the project's GitHub page](http://github.com/end2endzone/msbuildreorder).
+///   {{< /postedit >}}
+/// And the shortcode for postedit is the following:
+///   <p class="postedit">
+///     {{ .Inner | markdownify }}
+///   </p>
+/// This filter removes the "<p>" tags but only if there is no html inside the tag.
+/// </summary>
+void filter_paragraph_with_custom_css(std::string & content) {
+  HTML_TAG_INFO info;
+  size_t offset = 0;
+  while(find_html_tag_boundaries(content, "p", offset, info)) {
+    size_t inner_length = info.close_start - info.inner_start;
+    std::string inner_text = content.substr(info.inner_start, inner_length);
+
+    std::string class_value = get_html_attribute_value(content, "class", info);
+    bool has_custom_css_class = is_custom_css_class(class_value);
+
+    bool has_inner_html = has_inner_html_tags(inner_text);
+    if (has_inner_html) {
+      // The inner text of the tag has more html inside. Do not proceed with the replacement. Do more passes to replace all the code.
+      // next tag
+      offset = info.close_end + 1;
+    } else if (has_custom_css_class) {
+      // Wrap the content inside a custom shortcode that matches the name of the css class
+      
+      // Clean up inner text
+      trim_html_whitespace(inner_text);
+
+      std::string markdown;
+      markdown.append("{{< ");
+      markdown.append(class_value);
+      markdown.append(" >}}\n");
+      markdown.append("  ");
+      markdown.append(inner_text + "\n");
+      markdown.append("{{< /");
+      markdown.append(class_value);
+      markdown.append(" >}}\n");
+      
+      // replace
+      content.replace(content.begin() + info.open_start, content.begin() + info.close_end + 1, markdown);
+    } else {
+
+      // Clean up inner text
+      trim_html_whitespace(inner_text);
+
+      // replace
+      content.replace(content.begin() + info.open_start, content.begin() + info.close_end + 1, inner_text);
+    }
+  }
+}
+
+/// <summary>
+/// This filter removes all <p> tags.
 /// This filter removes the "<p>" tags but only if there is no html inside the tag.
 /// The "<p>" tag is skipped if it uses one of my custom css classes.
 /// </summary>
@@ -1189,7 +1247,7 @@ void filter_emphasized(std::string & content) {
       // next tag
       offset = info.close_end + 1;
     } else {
-      std::string markdown_emphasized;
+      std::string markdown_emphasized = inner_text;
       
       if (!markdown_emphasized.empty()) {
         markdown_emphasized = std::string("_") + inner_text + "_";
@@ -1640,21 +1698,6 @@ void filter_preformatted(std::string & content) {
     size_t inner_length = info.close_start - info.inner_start;
     std::string inner_text = content.substr(info.inner_start, inner_length);
 
-    std::string lang;
-
-    HTML_ATTRIBUTE_INFO data_url_info;
-    bool has_data_url_value = find_html_attribute_boundaries(content, "data-url", info.open_start, info.open_end, data_url_info);
-
-    std::string class_value = get_html_attribute_value(content, "class", info);
-    if (!class_value.empty()) {
-      // get the 'lang' parameter
-      lang = find_class_property(class_value, "lang");
-      if (lang == "default")
-        lang = "";
-      else if (lang == "c++")
-        lang = "cpp";
-    }
-
     bool has_inner_html = has_inner_html_tags(inner_text);
     if (has_inner_html) {
       // The inner text of the tag has more html inside. Do not proceed with the replacement. Do more passes to replace all the code.
@@ -1663,6 +1706,23 @@ void filter_preformatted(std::string & content) {
     } else {
 
       bool is_single_line = (inner_text.find('\n') == std::string::npos);
+
+      // Check if this <pre> tag has a class that would described the content's language.
+      // For example: `<pre class="lang:c++ decode:true" title="Arduino tone and delay functions overrides" data-url="http://www.end2endzone.com/wp-content/uploads/2016/10/Arduino-tone-and-delay-functions-overrides.ino">`
+      std::string lang;
+      std::string class_value = get_html_attribute_value(content, "class", info);
+      if (!class_value.empty()) {
+        // get the 'lang' parameter
+        lang = find_class_property(class_value, "lang");
+        if (lang == "default")
+          lang = "";
+        else if (lang == "c++")
+          lang = "cpp";
+      }
+
+      // Detect if the code is inlined in the content or if the code is from a local static file
+      HTML_ATTRIBUTE_INFO data_url_info;
+      bool has_data_url_value = find_html_attribute_boundaries(content, "data-url", info.open_start, info.open_end, data_url_info);
       if (has_data_url_value) {
         is_single_line = false;
 
@@ -1670,24 +1730,35 @@ void filter_preformatted(std::string & content) {
         std::string data_url_value = get_html_attribute_value(content, "data-url", info);
         search_and_replace(data_url_value, WEBSITE_HOSTNAME, "");
 
-        // Create hugo function to include the data-url file into this content
-        inner_text.clear();
-        inner_text.append("{{< readfile file=\"");
-        inner_text.append(data_url_value);
-        inner_text.append("\" >}}");
+        // Hugo's storage file starts with /static/
+        data_url_value.insert(0, "/static");
+
+        // Use a hugo shortcode to highlight file identified by the data-url into this content
+        // The file hightlight-static-file.html should have the following content: `{{ highlight (readFile (.Get "file")) (.Get "lang") "" }}`
+        // and should be called with the following syntax: `{{< hightlight-static-file file="/static/wp-content/uploads/2015/01/guess.cpp" lang="cpp" >}}`
+        std::string markdown_code;
+        markdown_code.append("{{< hightlight-static-file file=\"");
+        markdown_code.append(data_url_value);
+        markdown_code.append("\" lang=\"");
+        markdown_code.append(lang);
+        markdown_code.append("\" >}}");
+
+        // replace
+        content.replace(content.begin() + info.open_start, content.begin() + info.close_end + 1, markdown_code);
       }
-      else
+      else {
         trim_html_whitespace(inner_text);
 
-      std::string markdown_code;
-      if (is_single_line) {
-        markdown_code = std::string("`") + inner_text + "`";
-      } else {
-        markdown_code = std::string("\n```") + lang + "\n" + inner_text + "\n```\n";
-      }
+        std::string markdown_code;
+        if (is_single_line) {
+          markdown_code = std::string("`") + inner_text + "`";
+        } else {
+          markdown_code = std::string("\n```") + lang + "\n" + inner_text + "\n```\n";
+        }
 
-      // replace
-      content.replace(content.begin() + info.open_start, content.begin() + info.close_end + 1, markdown_code);
+        // replace
+        content.replace(content.begin() + info.open_start, content.begin() + info.close_end + 1, markdown_code);
+      }
     }
   }
 }
@@ -1698,6 +1769,7 @@ void filter_known_html_entities(std::string & content) {
 
   search_and_replace(content, "&#215;", "x");
   search_and_replace(content, "&#8211;", "-");
+  search_and_replace(content, "&#8216;", "'");
   search_and_replace(content, "&#8217;", "'");
   search_and_replace(content, "&#8230;", "...");
   search_and_replace(content, "&#8220;", "&quot;");
@@ -2087,6 +2159,7 @@ void run_all_filters(std::string & content) {
   static const size_t num_passes = 15;
   for(size_t i=0; i<num_passes; i++) {
     filter_span(content);
+    filter_paragraph_with_custom_css(content);
     filter_paragraph(content);
     filter_images(content);
     filter_strong(content);
