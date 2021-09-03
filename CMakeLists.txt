@@ -75,6 +75,8 @@ include_directories(${CMAKE_BINARY_DIR}/include     # for ${BIN2CPP_VERSION_HEAD
 
 add_executable(markdownfilter
   ${CMAKE_SOURCE_DIR}/src/markdownfilter.cpp
+  ${CMAKE_SOURCE_DIR}/src/utils.cpp
+  ${CMAKE_SOURCE_DIR}/src/utils.h
 )
 
 # Define include directories for exported code.
