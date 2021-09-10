@@ -1,4 +1,10 @@
 #include "utils.h"
+#include <direct.h>
+
+#ifdef _WIN32
+// warning C4996: 'chdir': The POSIX name for this item is deprecated. Instead, use the ISO C++ conformant name: _chdir. See online help for details.
+#pragma warning(disable : 4996)
+#endif
 
 static bool is_utf8_source = true; //change this to false if you are parsing from Windows code page 1252 (Cp1252) or from ISO8859-1 character encoding
 
@@ -803,4 +809,327 @@ std::string get_line_at_offset(std::string & content, size_t offset) {
   size_t count = offset_end - offset_begin + 1;
   std::string line = content.substr(offset_begin, count);
   return line;
+}
+
+bool file_exists(const char * path) {
+  FILE * f = fopen(path, "rb");
+  if (!f)
+    return false;
+  fclose(f);
+  return true;
+}
+
+bool dir_exists(const char * path) {
+  static const size_t DIR_SIZE = 10240;
+  char current_dir[DIR_SIZE] = {0};
+  getcwd(current_dir, DIR_SIZE);
+  
+  if (current_dir[0] == '\0')
+    return false;
+  
+  int error = chdir(path);
+  if (error)
+    return false;
+
+  chdir(current_dir);
+  return true;
+}
+
+std::string get_env_variable(const char * name) {
+  static const std::string EMPTY;
+  if (name == NULL)
+    return EMPTY;
+
+  char * value = getenv(name);
+  if (value == NULL)
+    return EMPTY;
+
+  return value;
+}
+
+std::string get_temp_directory() {
+#ifdef _WIN32
+  std::string temp = get_env_variable("TEMP");
+  return temp;
+#else
+#error Please define how to get TEMP directory.
+#endif
+}
+
+std::string get_file_separator() {
+#ifdef _WIN32
+  return "\\";
+#else
+  return "//";
+#endif
+}
+
+std::string find_argument(const char * name, int argc, char* argv[])
+{
+  static const std::string EMPTY;
+  if (name == NULL)
+    return EMPTY;
+
+  // Build search pattern
+  std::string pattern;
+  pattern += "--";
+  pattern += name;
+  pattern += "=";
+
+  for(int i=0; i<argc; i++) {
+    std::string arg = argv[i];
+    if (arg.substr(0, pattern.size()) == pattern) {
+      // That's our argument
+      std::string value = arg;
+      value.erase(0, pattern.size()); // remove the pattern from the argument, leaving only the value
+      return value;
+    }
+  }
+
+  return EMPTY;
+}
+
+std::vector<std::string> get_files_in_directory(const char * directory) {
+  static const std::vector<std::string> EMPTY;  
+  if (directory == NULL || !dir_exists(directory))
+    return EMPTY;
+
+  // Get the system's TEMP directory
+  std::string temp_dir = get_temp_directory();
+  std::string temp_file = temp_dir + get_file_separator() + "get_files_in_directory.tmp";
+
+  bool deleted = delete_file(temp_file);
+  if (!deleted)
+    return EMPTY;
+
+  // Build a command to list all files of a directory and dump the list into a file
+#ifdef _WIN32
+  std::string command;
+  command += "cd /d \"";
+  command += directory;
+  command += "\" && dir /a/s/b";
+  command += ">\"";
+  command += temp_file;
+  command += "\"";
+
+  int returncode = system(command.c_str());
+  if (returncode != 0) {
+    std::cout << "Error. Failed to execute command: " << command << "\n";
+    return EMPTY;
+  }
+  
+  if (!file_exists(temp_file.c_str())) {
+    std::cout << "Error. File not found: " << temp_file << "\n";
+    return EMPTY;
+  }
+
+  std::vector<std::string> files = read_file_lines(temp_file.c_str());
+#else
+#error Please define a method for getting files in a directory
+#endif
+
+  return files;
+}
+
+std::vector<std::string> read_file_lines(const char * path) {
+  static const std::vector<std::string> EMPTY;
+  if (path == NULL)
+    return EMPTY;
+
+  FILE * f = fopen(path, "r");
+  if (!f)
+    return EMPTY;
+
+  std::vector<std::string> lines;
+
+  static const size_t BUFFER_SIZE = 102400;
+  char buffer[BUFFER_SIZE] = {0};
+
+  while(fgets(buffer, BUFFER_SIZE, f)) {
+    std::string path = buffer;
+
+    // remove ending CRLF
+    while(!path.empty() && path[path.size()-1] == '\n') {
+      path.erase(path.size()-1, 1);
+    }
+    while(!path.empty() && path[path.size()-1] == '\r') {
+      path.erase(path.size()-1, 1);
+    }
+
+    // Check if path is a file or a directory
+    bool is_file = file_exists(path.c_str());
+    if (is_file)
+      lines.push_back(path);
+  }
+
+  fclose(f);
+
+  return lines;
+}
+
+std::string get_parent_directory(const char * path) {
+  static const std::string EMPTY;
+  if (path == NULL)
+    return EMPTY;
+
+  std::string path_str = path;
+  std::string file_separator = get_file_separator();
+  
+  // Find the position of the last file separator character
+  size_t last_separator_pos;
+  last_separator_pos = path_str.find_last_of(file_separator[0]);
+  if (last_separator_pos == std::string::npos)
+    return EMPTY;
+  last_separator_pos--; // parent directory ends before the last separator
+
+  // Extract the parent directory
+  size_t count = last_separator_pos + 1;
+  std::string parent_directory = path_str.substr(0, count);
+
+  return parent_directory;
+}
+
+std::string get_file_name(const char * path) {
+  static const std::string EMPTY;
+  if (path == NULL)
+    return EMPTY;
+
+  std::string path_str = path;
+  std::string file_separator = get_file_separator();
+  
+  // Find the position of the last file separator character
+  size_t last_separator_pos;
+  last_separator_pos = path_str.find_last_of(file_separator[0]);
+  if (last_separator_pos == std::string::npos)
+    last_separator_pos = 0;
+  else
+    last_separator_pos++; // filename starts after the last separator
+
+  // Find the position of the last dot from last_separator_pos
+  size_t last_dot_pos;
+  last_dot_pos = path_str.find_last_of('.');
+  if (last_dot_pos == std::string::npos)
+    last_dot_pos = path_str.size();
+  else if (last_separator_pos >= last_dot_pos)
+    return EMPTY; // the last dot is before the last separator
+  else
+    last_dot_pos--; // filename ends 1 character before the last dot.
+
+  // Extract the filename
+  size_t count = last_dot_pos - last_separator_pos + 1;
+  std::string filename = path_str.substr(last_separator_pos, count);
+
+  return filename;
+}
+
+std::string get_file_extension(const char * path) {
+  static const std::string EMPTY;
+  if (path == NULL)
+    return EMPTY;
+
+  std::string path_str = path;
+  std::string file_separator = get_file_separator();
+  
+  // Find the position of the last file separator character
+  size_t last_separator_pos;
+  last_separator_pos = path_str.find_last_of(file_separator[0]);
+  if (last_separator_pos == std::string::npos)
+    last_separator_pos = 0;
+  else
+    last_separator_pos++; // filename starts after the last separator
+
+  // Find the position of the last dot from last_separator_pos
+  size_t last_dot_pos;
+  last_dot_pos = path_str.find_last_of('.');
+  if (last_dot_pos == std::string::npos)
+    last_dot_pos = path_str.size();
+  else if (last_separator_pos >= last_dot_pos)
+    return EMPTY; // the last dot is before the last separator
+  else
+    last_dot_pos--; // filename ends 1 character before the last dot.
+
+  // Extract the extension
+  last_dot_pos += 2; // extension starts after the last dot
+  if (last_dot_pos == path_str.size())
+    return EMPTY;
+  size_t count = path_str.size()-1 - last_dot_pos + 1;
+  std::string extension = path_str.substr(last_dot_pos, count);
+
+  return extension;
+}
+
+std::string get_file_name_with_extension(const char * path) {
+  static const std::string EMPTY;
+  if (path == NULL)
+    return EMPTY;
+
+  std::string path_str = path;
+  std::string file_separator = get_file_separator();
+  
+  // Find the position of the last file separator character
+  size_t last_separator_pos;
+  last_separator_pos = path_str.find_last_of(file_separator[0]);
+  if (last_separator_pos == std::string::npos)
+    last_separator_pos = 0;
+  else
+    last_separator_pos++; // filename starts after the last separator
+
+  // Extract the filename
+  size_t count = (path_str.size()-1) - last_separator_pos + 1;
+  std::string filenameextension = path_str.substr(last_separator_pos, count);
+
+  return filenameextension;
+}
+
+bool is_sub_image_size(const char * master_path, const char * test_path) {
+  if (master_path == NULL || test_path == NULL)
+    return false;
+
+  std::string master_path_str = master_path;
+  std::string test_path_str = test_path;
+  std::string master_extension = get_file_extension(master_path);
+  
+  // Build the file mandatory prefix
+  std::string prefix;
+  if (master_extension.empty())
+    prefix = master_path_str + "-";
+  else
+    prefix = master_path_str.substr(0, master_path_str.size() - 1 - master_extension.size());
+
+  if (test_path_str.compare(0, prefix.size(), prefix.c_str()) != 0)
+    return false; // invalid
+
+  // Validate the file's postfix
+  std::string master_filename = get_file_name(master_path);
+  std::string test_filename   = get_file_name(test_path);
+  if (master_filename.size() > test_filename.size())
+    return false; // something's wrong
+  if (test_filename.compare(0, master_filename.size(), master_filename.c_str()) != 0)
+    return false; // invalid
+
+  // Truncate the file from the test filename
+  test_filename.erase(0, master_filename.size());
+  if (!test_filename.empty() && test_filename[0] == '-')
+    test_filename.erase(0, 1);
+
+  // Check that format is "000x000".
+  while(!test_filename.empty() && is_digit(test_filename[0])) {
+    test_filename.erase(0, 1);
+  }
+  while(!test_filename.empty() && is_digit(test_filename[test_filename.size()-1])) {
+    test_filename.erase(test_filename.size()-1, 1);
+  }
+
+  if (test_filename == "x")
+    return true;
+  return false;
+}
+
+void uppercase(std::string & str) {
+  std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+}
+
+bool delete_file(const std::string & path) {
+  int result = remove(path.c_str());
+  return (result == 0);
 }

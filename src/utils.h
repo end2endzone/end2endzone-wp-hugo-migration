@@ -88,6 +88,21 @@ bool is_custom_css_class(const std::string & class_);
 bool is_division_gallery(const std::string & content, const HTML_TAG_INFO & info);
 bool parse_gallery_table(std::string & content, HtmlTable & table);
 bool parse_html_table(std::string & content, HtmlTable & table);
+bool file_exists(const char * path);
+bool dir_exists(const char * path);
+std::string get_env_variable(const char * name);
+std::string get_temp_directory();
+std::string get_file_separator();
+std::string find_argument(const char * name, int argc, char* argv[]);
+std::vector<std::string> get_files_in_directory(const char * directory);
+std::vector<std::string> read_file_lines(const char * path);
+std::string get_parent_directory(const char * path);
+std::string get_file_name(const char * path);
+std::string get_file_extension(const char * path);
+std::string get_file_name_with_extension(const char * path);
+bool is_sub_image_size(const char * master_path, const char * test_path);
+void uppercase(std::string & str);
+bool delete_file(const std::string & path);
 
 // Functions
 template <class T>
