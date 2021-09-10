@@ -17,6 +17,10 @@ static bool process_file_in_place = true;
 static const char link_reference_endding_characters[] = { '\n', '\0' };
 static const size_t num_link_reference_endding_characters = sizeof(link_reference_endding_characters) / sizeof(link_reference_endding_characters[0]);
 
+struct Arguments {
+  std::string input_file;
+};
+
 void filter_span(std::string & content);
 void filter_paragraph_with_custom_css(std::string & content);
 void filter_paragraph(std::string & content);
@@ -1283,23 +1287,53 @@ void run_all_filters(std::string & content) {
   restore_newlines(content, eol_type);
 }
 
+void show_usage() {
+  std::cout << "markdownfilter\n";
+  std::cout << "Usage:\n";
+  std::cout << "  Replace html formatting in a markdown file by native markdown syntax.\n";
+  std::cout << "Features:\n";
+  std::cout << "  The following html tags are supported: span, p, img, a, strong, i, em, code, ul, li, pre, div, table.\n";
+  std::cout << "  The function 'filter_paragraph_with_custom_css()' supports paragraph with custom css classes.\n";
+  std::cout << "  These paragraphs are converted and a shortcode matching the custom css class is added before and after the paragraph's content.\n";
+  std::cout << "  Wordpress galleries are properly identified and converted to a markdown table.\n";
+  std::cout << "  Html tables which are missing an header row (or if the header row cannot be identified) have an additional empty row added at the beginning as the header.\n";
+  std::cout << "  Most known html entities are replaced by their corresponding utf-8 character.\n";
+  std::cout << "  Whitespace is removed as much as possible.\n";
+  std::cout << "  Reference-style links are replaced by inline links.\n";
+  std::cout << "  Featured_image element in front matter is replaced by image.src format.\n";
+  std::cout << "Arguments:\n";
+  std::cout << "  --file=<path>\t\tPath to markdown file.\n";
+  std::cout << "\n";
+}
+
 int main(int argc, char* argv[])
 {
+  Arguments args;
+
+  // Show usage if nothing is specified.
   if (argc <= 1) {
-    std::cout << "Error. Please specify an input file.\n";
+    show_usage();
     return 1;
   }
 
-  const char * path = argv[1];
-  if (!file_exists(path)) {
-    std::cout << "File not found: '" << path << "'.\n";
+  // Search --if=<file> argument
+  args.input_file = find_argument("if", argc, argv);
+  if (args.input_file.empty()) {
+    std::cout << "Error. Please specify --if=<file> argument.\n";
+    std::cout << "\n";
+    show_usage();
+    return 1;
+  }
+
+  if (!file_exists(args.input_file.c_str())) {
+    std::cout << "File not found: '" << args.input_file << "'.\n";
     return 2;
   }
 
-  std::cout << "Loading file '" << path << "'.\n";
-  std::string content = load_file(path);
+  std::cout << "Loading file '" << args.input_file << "'.\n";
+  std::string content = load_file(args.input_file.c_str());
   if (content.empty()) {
-    std::cout << "Error. Unable to load file '" << path << "'.\n";
+    std::cout << "Error. Unable to load file '" << args.input_file << "'.\n";
     return 3;
   }
 
@@ -1308,9 +1342,9 @@ int main(int argc, char* argv[])
   // use in-place replacement
   std::string output_path;
   if (process_file_in_place)
-    output_path = std::string(path);
+    output_path = args.input_file;
   else
-    output_path = std::string(path)+".backup.md";
+    output_path = args.input_file+".backup.md";
 
   // show output message
   if (process_file_in_place)
