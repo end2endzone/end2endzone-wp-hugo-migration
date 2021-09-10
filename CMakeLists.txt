@@ -62,6 +62,7 @@ MESSAGE( STATUS "CMAKE_SYSTEM_INFO_FILE:      " ${CMAKE_SYSTEM_INFO_FILE} )
 # Prevents annoying warnings on MSVC
 if (WIN32)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+  add_definitions(-D_CRT_NONSTDC_NO_DEPRECATE)
 endif()
 
 # Define include directories for source code.
@@ -75,6 +76,13 @@ include_directories(${CMAKE_BINARY_DIR}/include     # for ${BIN2CPP_VERSION_HEAD
 
 add_executable(markdownfilter
   ${CMAKE_SOURCE_DIR}/src/markdownfilter.cpp
+  ${CMAKE_SOURCE_DIR}/src/utils.cpp
+  ${CMAKE_SOURCE_DIR}/src/utils.h
+)
+
+add_executable(FilterImageSizes
+  ${CMAKE_SOURCE_DIR}/src/FilterImageSizes.cpp
+  ${CMAKE_SOURCE_DIR}/src/FilterImageSizes.txt
   ${CMAKE_SOURCE_DIR}/src/utils.cpp
   ${CMAKE_SOURCE_DIR}/src/utils.h
 )
