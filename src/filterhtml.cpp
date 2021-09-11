@@ -1,4 +1,4 @@
-// markdownfilter.cpp : Defines the entry point for the console application.
+// filterhtml.cpp : Defines the entry point for the console application.
 //
 
 #include <stdio.h>
@@ -1288,7 +1288,7 @@ void run_all_filters(std::string & content) {
 }
 
 void show_usage() {
-  std::cout << "markdownfilter\n";
+  std::cout << "filterhtml\n";
   std::cout << "Usage:\n";
   std::cout << "  Replace html formatting in a markdown file by native markdown syntax.\n";
   std::cout << "Features:\n";

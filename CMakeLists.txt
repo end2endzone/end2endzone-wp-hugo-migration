@@ -74,9 +74,9 @@ include_directories(${CMAKE_BINARY_DIR}/include     # for ${BIN2CPP_VERSION_HEAD
 # Subprojects
 ##############################################################################################################################################
 
-add_executable(markdownfilter
-  ${CMAKE_SOURCE_DIR}/src/markdownfilter.cpp
-  ${CMAKE_SOURCE_DIR}/src/markdownfilter.txt
+add_executable(filterhtml
+  ${CMAKE_SOURCE_DIR}/src/filterhtml.cpp
+  ${CMAKE_SOURCE_DIR}/src/filterhtml.txt
   ${CMAKE_SOURCE_DIR}/src/utils.cpp
   ${CMAKE_SOURCE_DIR}/src/utils.h
 )
@@ -89,7 +89,7 @@ add_executable(FilterImageSizes
 )
 
 # Define include directories for exported code.
-target_include_directories(markdownfilter
+target_include_directories(filterhtml
   PUBLIC
     ${CMAKE_SOURCE_DIR}/include
 )
