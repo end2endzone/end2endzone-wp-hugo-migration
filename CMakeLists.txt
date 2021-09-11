@@ -81,9 +81,9 @@ add_executable(filterhtml
   ${CMAKE_SOURCE_DIR}/src/utils.h
 )
 
-add_executable(FilterImageSizes
-  ${CMAKE_SOURCE_DIR}/src/FilterImageSizes.cpp
-  ${CMAKE_SOURCE_DIR}/src/FilterImageSizes.txt
+add_executable(filterimagesizes
+  ${CMAKE_SOURCE_DIR}/src/filterimagesizes.cpp
+  ${CMAKE_SOURCE_DIR}/src/filterimagesizes.txt
   ${CMAKE_SOURCE_DIR}/src/utils.cpp
   ${CMAKE_SOURCE_DIR}/src/utils.h
 )

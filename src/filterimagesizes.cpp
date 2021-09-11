@@ -1,4 +1,4 @@
-// markdownfilter.cpp : Defines the entry point for the console application.
+// filterimagesizes.cpp : Defines the entry point for the console application.
 //
 
 #include <stdio.h>
@@ -196,7 +196,7 @@ int search_image_sizes(const Arguments & args, const Context & c) {
 }
 
 void show_usage() {
-  std::cout << "FilterImageSizes\n";
+  std::cout << "filterimagesizes\n";
   std::cout << "Usage:\n";
   std::cout << "  Search in a wp-content directory for images sizes and delete them leaving only the master image.\n";
   std::cout << "  Replaces in all posts any reference of a sub image size by the image with the highest resolution.\n";
