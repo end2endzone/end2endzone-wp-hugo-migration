@@ -19,7 +19,11 @@ static const size_t num_link_reference_endding_characters = sizeof(link_referenc
 
 struct Arguments {
   std::string input_file;
+  std::string input_directory;
 };
+
+int process_directory(const std::string & input_directory);
+int process_file(const std::string & input_file);
 
 void filter_span(std::string & content);
 void filter_paragraph_with_custom_css(std::string & content);
@@ -1302,8 +1306,71 @@ void show_usage() {
   std::cout << "  Reference-style links are replaced by inline links.\n";
   std::cout << "  Featured_image element in front matter is replaced by image.src format.\n";
   std::cout << "Arguments:\n";
-  std::cout << "  --file=<path>\t\tPath to markdown file.\n";
+  std::cout << "  --if=<path>\t\tPath to markdown file.\n";
+  std::cout << "  --id=<path>\t\tPath to directory with markdown files.\n";
   std::cout << "\n";
+}
+
+int process_directory(const std::string & input_directory) {
+  if (!dir_exists(input_directory.c_str())) {
+    std::cout << "Directory not found: '" << input_directory << "'.\n";
+    return 2;
+  }
+
+  std::cout << "Reading directory file '" << input_directory << "'.\n";
+  std::vector<std::string> files = get_files_in_directory(input_directory.c_str());
+  if (files.empty()) {
+    std::cout << "Error. No files in directory '" << input_directory << "'.\n";
+    return 3;
+  }
+
+  std::cout << "Processing " << files.size() << " files in directory.\n";
+  for(size_t i=0; i<files.size(); i++) {
+    const std::string & file_path = files[i];
+    int return_code = process_file(file_path);
+    if (return_code != 0) {
+      return return_code;
+    }
+  }
+
+  return 0;
+}
+
+int process_file(const std::string & input_file) {
+  if (!file_exists(input_file.c_str())) {
+    std::cout << "File not found: '" << input_file << "'.\n";
+    return 2;
+  }
+
+  std::cout << "Loading file '" << input_file << "'.\n";
+  std::string content = load_file(input_file.c_str());
+  if (content.empty()) {
+    std::cout << "Error. Unable to load file '" << input_file << "'.\n";
+    return 3;
+  }
+
+  run_all_filters(content);
+
+  // use in-place replacement
+  std::string output_path;
+  if (process_file_in_place)
+    output_path = input_file;
+  else
+    output_path = input_file+".backup.md";
+
+  // show output message
+  if (process_file_in_place)
+    std::cout << "Saving file.\n";
+  else
+    std::cout << "Saving file as '" << output_path << "'.\n";
+
+  bool saved = save_file(output_path, content);
+  if (!saved) {
+    std::cout << "Error. Unable to save file '" << output_path << "'.\n";
+    return 4;
+  }
+
+  return 0;
 }
 
 int main(int argc, char* argv[])
@@ -1317,45 +1384,29 @@ int main(int argc, char* argv[])
   }
 
   // Search --if=<file> argument
+  // Search --id=<dir> argument
   args.input_file = find_argument("if", argc, argv);
-  if (args.input_file.empty()) {
-    std::cout << "Error. Please specify --if=<file> argument.\n";
+  args.input_directory = find_argument("id", argc, argv);
+
+  if (args.input_file.empty() && args.input_directory.empty()) {
+    std::cout << "Error. Please specify --if=<file> or --id=<dir> arguments.\n";
     std::cout << "\n";
     show_usage();
     return 1;
   }
 
-  if (!file_exists(args.input_file.c_str())) {
-    std::cout << "File not found: '" << args.input_file << "'.\n";
-    return 2;
+  if (!args.input_file.empty()) {
+    int return_code = process_file(args.input_file);
+    if (return_code != 0) {
+      return return_code;
+    }
   }
 
-  std::cout << "Loading file '" << args.input_file << "'.\n";
-  std::string content = load_file(args.input_file.c_str());
-  if (content.empty()) {
-    std::cout << "Error. Unable to load file '" << args.input_file << "'.\n";
-    return 3;
-  }
-
-  run_all_filters(content);
-
-  // use in-place replacement
-  std::string output_path;
-  if (process_file_in_place)
-    output_path = args.input_file;
-  else
-    output_path = args.input_file+".backup.md";
-
-  // show output message
-  if (process_file_in_place)
-    std::cout << "Saving file.\n";
-  else
-    std::cout << "Saving file as '" << output_path << "'.\n";
-
-  bool saved = save_file(output_path, content);
-  if (!saved) {
-    std::cout << "Error. Unable to save file '" << output_path << "'.\n";
-    return 4;
+  if (!args.input_directory.empty()) {
+    int return_code = process_directory(args.input_directory);
+    if (return_code != 0) {
+      return return_code;
+    }
   }
 
 	return 0;
