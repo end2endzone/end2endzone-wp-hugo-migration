@@ -4,7 +4,7 @@ A list of tools to help in migrating a WordPress website to Hugo.
 
 # Preface
 
-I migrated my Wordpress blog instance to [Hugo](https://gohugo.io/). For the converting posts to markdown format, I used # [SchumacherFM/wordpress-to-hugo-exporter](https://github.com/SchumacherFM/wordpress-to-hugo-exporter).
+I migrated my Wordpress blog instance to [Hugo](https://gohugo.io/). For the converting posts to markdown format, I used [SchumacherFM/wordpress-to-hugo-exporter](https://github.com/SchumacherFM/wordpress-to-hugo-exporter).
 
 To my surprise, it seems that my posts, now in markdown format, are still having html formatting. I wish to get all formatting removed and get "plain markdown" without any formatting. At the time, I was preferring to use wordpress visual editor to set my desired formatting. I think that exporting to hugo would be a nice opportunity to start over and set all my formatting with css instead of having all my formatting in my post "raw data".
 
