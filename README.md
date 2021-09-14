@@ -33,8 +33,6 @@ Arguments:
 
 * `--content=<dir>` : Path to the 'content' directory of a Hugo site repository.
 
-
-
 ## filterhtml
 
 Replace html formatting in a markdown file by native markdown syntax.
@@ -43,18 +41,16 @@ Features:
 
 * The following html tags are supported: `span`, `p`, `img`, `a`, `strong`, `i`, `em`, `code`, `ul`, `li`, `pre`, `div`, `table`.
 * The function `filter_paragraph_with_custom_css()` supports paragraph with custom css classes which were specific for by blog. These paragraphs are converted and a shortcode matching the custom css class is added before and after the paragraph's content. Replace the list of custom classes by yours to get the same result.
-* [Wordpress galleries]([The WordPress Gallery &#124; WordPress.org](https://wordpress.org/support/article/the-wordpress-gallery/)) are properly identified and converted to a markdown table.
+* [Wordpress galleries](https://wordpress.org/support/article/the-wordpress-gallery/) are properly identified and converted to a markdown table.
 * Html tables which are missing an header row (or if the header row cannot be identified) have an additional empty row added at the beginning as the header.
 * Most known html entities are replaced by their corresponding utf-8 character.
 * Whitespace is removed as much as possible.
-* [Reference-style links]([Basic Syntax | Markdown Guide](https://www.markdownguide.org/basic-syntax/#reference-style-links)) are replaced by [inline links]([Basic Syntax | Markdown Guide](https://www.markdownguide.org/basic-syntax/#formatting-links)).
+* [Reference-style links](https://www.markdownguide.org/basic-syntax/#reference-style-links) are replaced by [inline links](https://www.markdownguide.org/basic-syntax/#formatting-links).
 * Featured_image element in front matter is replaced by image.src format.
 
 Arguments:
 
 * `--file=<path>` : Path to markdown file.
-
-
 
 # Build
 
