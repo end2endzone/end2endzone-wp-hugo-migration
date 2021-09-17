@@ -24,6 +24,10 @@ bool is_alphanumeric(const char c) {
   return (is_digit(c) || is_letter(c));
 }
 
+bool is_text(const char c) {
+  return (is_alphanumeric(c) || c == ' ' || c == '.' || c == ',' );
+}
+
 bool is_numeric(const char * value) {
   // from https://raw.githubusercontent.com/end2endzone/RapidAssist/master/src/rapidassist/strings.cpp
   if (value == NULL)

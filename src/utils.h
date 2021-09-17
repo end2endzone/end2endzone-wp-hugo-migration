@@ -43,6 +43,7 @@ struct HTML_ATTRIBUTE_INFO {
 bool is_digit(const char c);
 bool is_letter(const char c);
 bool is_alphanumeric(const char c);
+bool is_text(const char c);
 bool is_numeric(const char * value);
 size_t count_character(const char * text, char character);
 size_t get_line_indentation(const char * content, size_t offset);

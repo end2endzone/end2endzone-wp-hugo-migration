@@ -42,7 +42,9 @@ void filter_division(std::string & content);
 void filter_division_gallery(std::string & content);
 void filter_table(std::string & content);
 void filter_preformatted(std::string & content);
+void filter_small(std::string & content);
 void filter_known_html_entities(std::string & content);
+void filter_more_html_entities(std::string & content);
 void filter_useless_nbsp_entities(std::string & content);
 void filter_table_cells_inner_white_space(std::string & content);
 void filter_table_cells_outer_white_space(std::string & content);
@@ -389,6 +391,9 @@ void filter_code(std::string & content) {
       bool is_single_line = (inner_text.find('\n') == std::string::npos);
 
       trim_html_whitespace(inner_text);
+
+      // filter more html entities
+      filter_more_html_entities(inner_text);
 
       std::string markdown_code;
       if (!inner_text.empty()) {
@@ -855,6 +860,9 @@ void filter_preformatted(std::string & content) {
       else {
         trim_html_whitespace(inner_text);
 
+        // filter more html entities
+        filter_more_html_entities(inner_text);
+
         std::string markdown_code;
         if (is_single_line) {
           markdown_code = std::string("`") + inner_text + "`";
@@ -869,9 +877,39 @@ void filter_preformatted(std::string & content) {
   }
 }
 
+/// <summary>
+/// This filter replaces all <small> tags with their markdown equivalent, but only if there is no html inside the tag.
+/// </summary>
+void filter_small(std::string & content) {
+  HTML_TAG_INFO info;
+  size_t offset = 0;
+  while(find_html_tag_boundaries(content, "small", offset, info)) {
+    size_t tag_length = info.close_end - info.open_start + 1;
+    std::string tag_content = content.substr(info.open_start, tag_length);
+    size_t inner_length = info.close_start - info.inner_start;
+    std::string inner_text = content.substr(info.inner_start, inner_length);
+
+    bool has_inner_html = has_inner_html_tags(inner_text);
+    if (has_inner_html) {
+      // The inner text of the tag has more html inside. Do not proceed with the replacement. Do more passes to replace all the code.
+      // next tag. Do not use close_end to prevent skipping tags within other tags of the same type.
+      // For example, <small><small>foo bar</small></small>
+      offset = info.open_end + 1;
+    } else {
+      // replace
+      content.replace(content.begin() + info.open_start, content.begin() + info.close_end + 1, inner_text);
+    }
+  }
+}
+
 void filter_known_html_entities(std::string & content) {
   // look for &nbsp; encoded as a utf8 code point
   search_and_replace(content, "\xc2\xa0", "&nbsp;");
+
+  search_and_replace(content, "&quot;", "\"");
+  search_and_replace(content, "&ldquo;", "\"");
+  search_and_replace(content, "&rdquo;", "\"");
+  search_and_replace(content, "&ndash;", "-");
 
   search_and_replace(content, "&#215;", "x");
   search_and_replace(content, "&#8211;", "-");
@@ -881,6 +919,12 @@ void filter_known_html_entities(std::string & content) {
   search_and_replace(content, "&#8220;", "&quot;");
   search_and_replace(content, "&#8221;", "&quot;");
   search_and_replace(content, "&#8242;", "'");
+}
+
+void filter_more_html_entities(std::string & content) {
+  search_and_replace(content, "&lt;", "<");
+  search_and_replace(content, "&gt;", ">");
+  search_and_replace(content, "&equals;", "=");
 }
 
 /// <summary>
@@ -902,7 +946,7 @@ void filter_useless_nbsp_entities(std::string & content) {
       c_after = content[pos + 1];
 
     // If they are alphanumeric, the non-breaking space can be safely replaced by a normal space
-    if (is_alphanumeric(c_before) && is_alphanumeric(c_after)) {
+    if (is_text(c_before) && is_text(c_after)) {
       // Replace the non-breaking space
       content.replace(content.begin() + pos, content.begin() + pos + pattern.size(), " ");
 
@@ -1280,6 +1324,7 @@ void run_all_filters(std::string & content) {
     filter_table(content);
     filter_division(content);
     filter_preformatted(content);
+    filter_small(content);
   }
 
   filter_table_cells_inner_white_space(content);
